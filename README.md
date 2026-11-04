@@ -29,6 +29,8 @@ The API runs on http://localhost:7020/api/v1.
 | `pnpm test` | Unit tests |
 | `pnpm smoke` | End to end checks against a running API with dev login (use a throwaway database) |
 | `pnpm typecheck` / `pnpm lint` | TypeScript and ESLint |
+| `pnpm review list` / `clear <handle>` / `spike <handle> [--apply]` | List accounts under review, clear one, or zero a flagged spike and then clear it. Needs `DATABASE_URL` |
+| `pnpm review:prod <same arguments>` | Runs `review` against production through an SSH tunnel to the database container (`TOKENAIRES_SSH_HOST`, default `srv628842`). Nothing is exposed publicly and changes are live |
 
 ## API
 
@@ -49,7 +51,7 @@ The API runs on http://localhost:7020/api/v1.
 - The server computes all totals from raw records. Totals in requests are not accepted.
 - `(source, recordId)` is globally unique. A record already owned by another account is refused, both accounts get a flag, and the uploader goes under review.
 - Records are refused for a malformed ID, a future time, a time before the tool or model existed, or impossible token counts.
-- Hourly and daily output spikes put an account under review. Reviewed accounts stay on the board with a marker.
+- Hourly and daily spikes in output tokens, total tokens or calls put an account under review. Accounts under review leave the boards and stats until they are cleared.
 
 ## Contracts
 

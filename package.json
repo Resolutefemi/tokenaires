@@ -19,7 +19,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "smoke": "tsx scripts/smoke.ts",
-    "review": "tsx scripts/review.ts"
+    "review": "tsx scripts/review.ts",
+    "review:prod": "bash scripts/with-prod-db.sh tsx scripts/review.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
