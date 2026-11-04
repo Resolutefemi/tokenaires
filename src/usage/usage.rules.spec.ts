@@ -1,7 +1,9 @@
 import { UsageRecord } from '@tokenaires/contracts';
 import {
   BucketTotals,
+  DayTotal,
   evaluateRecord,
+  historyJumps,
   rateBreaches,
   totalTokensOf,
 } from './usage.rules';
@@ -165,5 +167,56 @@ describe('rateBreaches', () => {
       'records',
       'totalTokens',
     ]);
+  });
+});
+
+describe('historyJumps', () => {
+  const history = (
+    perDay: number,
+    count: number,
+    end = '2026-10-31',
+  ): DayTotal[] =>
+    Array.from({ length: count }, (_, index) => ({
+      day: new Date(Date.parse(end) - (count - index) * 86_400_000)
+        .toISOString()
+        .slice(0, 10),
+      totalTokens: perDay,
+    }));
+
+  it('reviews a sudden day far above the account median', () => {
+    const days = [
+      ...history(200_000_000, 20),
+      { day: '2026-10-31', totalTokens: 6_000_000_000 },
+    ];
+    const jumps = historyJumps(days, new Set(['2026-10-31']));
+    expect(jumps).toEqual([
+      { day: '2026-10-31', totalTokens: 6_000_000_000, baseline: 200_000_000 },
+    ]);
+  });
+
+  it('leaves heavy but steady accounts and days below the floor alone', () => {
+    const steady = [
+      ...history(1_000_000_000, 20),
+      { day: '2026-10-31', totalTokens: 5_570_959_733 },
+    ];
+    expect(historyJumps(steady, new Set(['2026-10-31']))).toEqual([]);
+    const small = [
+      ...history(20_000_000, 20),
+      { day: '2026-10-31', totalTokens: 3_171_871_537 },
+    ];
+    expect(historyJumps(small, new Set(['2026-10-31']))).toEqual([]);
+  });
+
+  it('needs a week of history and only checks days in this upload', () => {
+    const thin = [
+      ...history(100_000_000, 5),
+      { day: '2026-10-31', totalTokens: 9_000_000_000 },
+    ];
+    expect(historyJumps(thin, new Set(['2026-10-31']))).toEqual([]);
+    const old = [
+      ...history(100_000_000, 20),
+      { day: '2026-10-31', totalTokens: 9_000_000_000 },
+    ];
+    expect(historyJumps(old, new Set(['2026-11-01']))).toEqual([]);
   });
 });

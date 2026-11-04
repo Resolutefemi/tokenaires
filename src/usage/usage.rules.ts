@@ -69,6 +69,51 @@ export const REVIEW_RATES: readonly RateLimit[] = [
   { metric: 'records', unit: 'day', limit: 60_000 },
 ];
 
+export const HISTORY_JUMP = {
+  minDayTotal: 4_000_000_000,
+  multipleOfMedian: 15,
+  lookbackDays: 30,
+  minHistoryDays: 7,
+} as const;
+
+export interface DayTotal {
+  day: string;
+  totalTokens: number;
+}
+
+const DAY_MS = 86_400_000;
+
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? (sorted[middle] ?? 0)
+    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
+}
+
+export function historyJumps(
+  days: readonly DayTotal[],
+  touched: ReadonlySet<string>,
+): Array<DayTotal & { baseline: number }> {
+  return days.flatMap((current) => {
+    if (!touched.has(current.day)) return [];
+    if (current.totalTokens <= HISTORY_JUMP.minDayTotal) return [];
+    const end = Date.parse(current.day);
+    const start = end - HISTORY_JUMP.lookbackDays * DAY_MS;
+    const history = days
+      .filter((day) => {
+        const at = Date.parse(day.day);
+        return at >= start && at < end && day.totalTokens > 0;
+      })
+      .map((day) => day.totalTokens);
+    if (history.length < HISTORY_JUMP.minHistoryDays) return [];
+    const baseline = median(history);
+    return current.totalTokens > baseline * HISTORY_JUMP.multipleOfMedian
+      ? [{ ...current, baseline }]
+      : [];
+  });
+}
+
 export interface BucketTotals {
   bucket: string;
   outputTokens: number;

@@ -40,6 +40,7 @@ The API runs on http://localhost:7020/api/v1.
 | `POST /auth/device/poll` | none | Finish sign-in and register the device's Ed25519 key |
 | `POST /usage/batches` | token + signature | Upload up to 2,000 usage records |
 | `GET /me` | token | Rank, tier and sync cursors for the CLI |
+| `POST /auth/logout` | token | Revoke this device's token |
 | `GET /boards?period=all\|month\|week&source=all\|claude-code\|codex&page=1` | none | A page of the board |
 | `GET /stats` | none | Developers and token totals |
 | `GET /users/:handle` | none | Public profile |
@@ -51,7 +52,11 @@ The API runs on http://localhost:7020/api/v1.
 - The server computes all totals from raw records. Totals in requests are not accepted.
 - `(source, recordId)` is globally unique. A record already owned by another account is refused, both accounts get a flag, and the uploader goes under review.
 - Records are refused for a malformed ID, a future time, a time before the tool or model existed, or impossible token counts.
-- Hourly and daily spikes in output tokens, total tokens or calls put an account under review. Accounts under review leave the boards and stats until they are cleared.
+- Hourly and daily spikes in output tokens, total tokens or calls put an account under review. So does a day over 4B tokens that is more than 15 times the account's median day over the previous 30 days.
+- Accounts under review leave the boards and stats until they are cleared with `pnpm review`.
+- One call is capped at 2.1M tokens.
+- Rate limits count per device token for signed in requests and per client address (`CF-Connecting-IP` behind Cloudflare) otherwise.
+- `POST /auth/logout` revokes the calling device's token.
 
 ## Contracts
 

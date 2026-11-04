@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq, inArray, max, sql } from 'drizzle-orm';
 import { AgentSource, AgentSourceSchema } from '@tokenaires/contracts';
-import type { BucketTotals } from './usage.rules';
+import type { BucketTotals, DayTotal } from './usage.rules';
 import { newId } from '../common/utils/ids';
 import { Database, DatabaseService } from '../database/database.service';
 import {
@@ -118,6 +118,32 @@ export class UsageRepository {
       outputTokens: Number(row.outputTokens),
       totalTokens: Number(row.totalTokens),
       records: Number(row.records),
+    }));
+  }
+
+  async dayTotals(
+    tx: Transaction,
+    userId: string,
+    from: string,
+    to: string,
+  ): Promise<DayTotal[]> {
+    const rows = await tx
+      .select({
+        day: dailyUsage.day,
+        totalTokens: sql<string>`sum(${dailyUsage.totalTokens})`,
+      })
+      .from(dailyUsage)
+      .where(
+        and(
+          eq(dailyUsage.userId, userId),
+          sql`${dailyUsage.day} >= ${from}::date`,
+          sql`${dailyUsage.day} <= ${to}::date`,
+        ),
+      )
+      .groupBy(dailyUsage.day);
+    return rows.map((row) => ({
+      day: String(row.day),
+      totalTokens: Number(row.totalTokens),
     }));
   }
 

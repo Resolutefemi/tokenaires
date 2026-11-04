@@ -243,6 +243,38 @@ async function main(): Promise<void> {
     ),
     'carol is left off the board',
   );
+  const dave = await login(`dave-${run}`);
+  const history = Array.from({ length: 8 }, (_, index) => ({
+    ...claudeRecord((index + 2) * 24 * 60, 200),
+    cacheReadTokens: 100_000,
+  }));
+  const quiet = await upload(dave, history);
+  check(
+    quiet.body.accepted === 8 && !quiet.body.underReview,
+    'eight quiet days of history are fine',
+  );
+  const today = Math.floor(Date.now() / 86_400_000) * 86_400_000;
+  const burst = (offsetMs: number) =>
+    Array.from({ length: 1_000 }, (_, index) => ({
+      ...claudeRecord(0, 50),
+      occurredAt: new Date(today + offsetMs + index * 1_000).toISOString(),
+      cacheReadTokens: 2_050_000,
+    }));
+  const burstHour = Math.min(
+    Date.now() - today - 3 * 3_600_000,
+    20 * 3_600_000,
+  );
+  const firstBurst = await upload(dave, burst(Math.max(0, burstHour)));
+  check(!firstBurst.body.underReview, 'two billion tokens today is still fine');
+  const secondBurst = await upload(
+    dave,
+    burst(Math.max(0, burstHour) + 3_600_000),
+  );
+  check(
+    secondBurst.body.underReview,
+    'a day over four billion and far above the usual pace goes to review',
+  );
+
   const codexBoard = await json<BoardResponse>(
     '/boards?period=week&source=codex',
   );
@@ -272,6 +304,17 @@ async function main(): Promise<void> {
     'me returns cursors and rank',
   );
   check((await json('/me')).status === 401, 'me needs a token');
+  const revoked = await json<{ revoked: boolean }>('/auth/logout', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${bob.token}` },
+  });
+  check(revoked.body.revoked, 'logout revokes the device');
+  const afterLogout = await json('/me', {
+    headers: { Authorization: `Bearer ${bob.token}` },
+  });
+  check(afterLogout.status === 401, 'a revoked token stops working');
+  const lateUpload = await upload(bob, [claudeRecord(2, 10)]);
+  check(lateUpload.status === 401, 'a revoked device cannot upload');
   check(
     (await json('/users/nobody-here-zz')).status === 404,
     'unknown profile is 404',

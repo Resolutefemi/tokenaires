@@ -108,6 +108,10 @@ export class AuthService {
     return { status: 'complete', token, deviceId, user: toPublicUser(user) };
   }
 
+  async revokeDevice(deviceId: string): Promise<void> {
+    await this.repository.revokeDevice(deviceId);
+  }
+
   async approveDev(code: string, handle: string): Promise<string> {
     if (!this.app.authDevLogin) throw new NotFoundException();
     const session = await this.repository.findPendingSessionByCode(code);

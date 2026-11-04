@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, or, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
 import {
   deviceSessions,
@@ -10,6 +10,7 @@ import {
   UserRow,
 } from '../database/schema';
 import { newId } from '../common/utils/ids';
+import { parkedHandle } from './handles';
 
 export interface GithubIdentity {
   githubId: number;
@@ -88,19 +89,45 @@ export class AuthRepository {
   }
 
   async upsertGithubUser(identity: GithubIdentity): Promise<UserRow> {
-    const [row] = await this.database.db
-      .insert(users)
-      .values({ id: newId(), ...identity })
-      .onConflictDoUpdate({
-        target: users.githubId,
-        set: {
-          handle: identity.handle,
-          name: identity.name,
-          avatarUrl: identity.avatarUrl,
-        },
-      })
-      .returning();
-    return row;
+    return this.database.db.transaction(async (tx) => {
+      const stale = await tx
+        .select({
+          id: users.id,
+          handle: users.handle,
+          githubId: users.githubId,
+        })
+        .from(users)
+        .where(
+          and(
+            sql`lower(${users.handle}) = lower(${identity.handle})`,
+            or(isNull(users.githubId), ne(users.githubId, identity.githubId)),
+          ),
+        );
+      for (const holder of stale) {
+        await tx
+          .update(users)
+          .set({
+            handle: parkedHandle(
+              holder.handle,
+              String(holder.githubId ?? holder.id),
+            ),
+          })
+          .where(eq(users.id, holder.id));
+      }
+      const [row] = await tx
+        .insert(users)
+        .values({ id: newId(), ...identity })
+        .onConflictDoUpdate({
+          target: users.githubId,
+          set: {
+            handle: identity.handle,
+            name: identity.name,
+            avatarUrl: identity.avatarUrl,
+          },
+        })
+        .returning();
+      return row;
+    });
   }
 
   async findOrCreateDevUser(handle: string): Promise<UserRow> {
@@ -143,6 +170,13 @@ export class AuthRepository {
       .where(and(eq(devices.tokenHash, tokenHash), isNull(devices.revokedAt)))
       .limit(1);
     return row;
+  }
+
+  async revokeDevice(deviceId: string): Promise<void> {
+    await this.database.db
+      .update(devices)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(devices.id, deviceId), isNull(devices.revokedAt)));
   }
 
   async recordSignature(signature: string, deviceId: string): Promise<boolean> {

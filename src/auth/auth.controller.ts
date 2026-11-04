@@ -6,9 +6,13 @@ import {
   HttpCode,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { DevicePollResponse, DeviceStartResponse } from '@tokenaires/contracts';
+import { CurrentDevice } from '../common/decorators/current-device.decorator';
+import type { AuthenticatedDevice } from '../common/guards/authenticated-device';
+import { TokenGuard } from '../common/guards/token.guard';
 import { DEV_DEFAULT_HANDLE, THROTTLE } from '../config/constants';
 import { AuthService } from './auth.service';
 import { DevApproveDto } from './dto/dev-approve.dto';
@@ -29,6 +33,16 @@ export class AuthController {
   @Throttle({ default: THROTTLE.devicePoll })
   poll(@Body() dto: DevicePollDto): Promise<DevicePollResponse> {
     return this.auth.poll(dto);
+  }
+
+  @Post('logout')
+  @HttpCode(200)
+  @UseGuards(TokenGuard)
+  async logout(
+    @CurrentDevice() device: AuthenticatedDevice,
+  ): Promise<{ revoked: true }> {
+    await this.auth.revokeDevice(device.deviceId);
+    return { revoked: true };
   }
 
   @Get('dev/approve')

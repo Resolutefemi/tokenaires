@@ -5,7 +5,13 @@ import { UsageRecordRow } from '../database/schema';
 import { IngestBatchDto } from './dto/ingest-batch.dto';
 import { rollupDaily, toRow } from './usage.aggregate';
 import { UsageRepository } from './usage.repository';
-import { evaluateRecord, RateLimit, rateBreaches } from './usage.rules';
+import {
+  evaluateRecord,
+  HISTORY_JUMP,
+  historyJumps,
+  RateLimit,
+  rateBreaches,
+} from './usage.rules';
 
 type Transaction = Parameters<Parameters<UsageRepository['transaction']>[0]>[0];
 
@@ -153,6 +159,31 @@ export class UsageService {
           bucket: bucket.bucket,
           value: bucket[rate.metric],
           limit: rate.limit,
+        });
+      }
+    }
+    const touched = new Set(accepted.map((row) => row.day));
+    const sortedDays = [...touched].sort();
+    const firstDay = sortedDays[0];
+    const lastDay = sortedDays[sortedDays.length - 1];
+    if (firstDay && lastDay) {
+      const lookbackStart = new Date(
+        Date.parse(firstDay) - HISTORY_JUMP.lookbackDays * 86_400_000,
+      )
+        .toISOString()
+        .slice(0, 10);
+      const days = await this.repository.dayTotals(
+        tx,
+        userId,
+        lookbackStart,
+        lastDay,
+      );
+      for (const jump of historyJumps(days, touched)) {
+        breached = true;
+        await this.repository.addFlag(tx, userId, 'history_jump_day', {
+          bucket: `${jump.day}T00:00:00Z`,
+          value: jump.totalTokens,
+          baseline: jump.baseline,
         });
       }
     }
