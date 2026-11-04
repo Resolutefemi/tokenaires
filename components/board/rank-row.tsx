@@ -4,13 +4,13 @@ import type { BoardEntry } from "@tokenaires/contracts";
 import { motion } from "motion/react";
 import { ShieldWarningIcon } from "@solar-icons/react/linear";
 import Link from "next/link";
-import { SourceIcon } from "@/components/brand/source-icon";
+import { AgentStack, AgentStackCompact, agentList } from "@/components/brand/agent-stack";
 import { TierBadge } from "@/components/brand/tier-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Tooltip } from "@/components/ui/tooltip";
 import { formatCompact, formatFull } from "@/lib/format";
 import { Movement } from "./movement";
-import { ROW_GRID, ROW_STAGGER_CAP_S, ROW_STAGGER_S } from "./row-grid";
+import { ROW_GRID, ROW_STAGGER_CAP_S, ROW_STAGGER_S, ROW_TOOLS_MAX } from "./row-grid";
 import { ShareBar } from "./share-bar";
 
 
@@ -68,20 +68,13 @@ export function RankRow({ entry, leader, showMovement, index }: RankRowProps) {
           </span>
           <span className="flex min-w-0 items-center gap-1.5 text-xs text-t3">
             <span className="truncate">@{entry.user.handle}</span>
-            {entry.sources.length > 0 && (
-              <span className="flex shrink-0 items-center gap-1 md:hidden">
-                {entry.sources.map((source) => (
-                  <SourceIcon key={source} source={source} className="size-3" />
-                ))}
-              </span>
-            )}
+            <AgentStackCompact sources={entry.sources} className="md:hidden" />
+            {entry.sources.length > 0 && <span className="sr-only md:hidden">, uses {agentList(entry.sources)}</span>}
           </span>
         </span>
       </Link>
-      <span className="hidden items-center gap-2 md:flex">
-        {entry.sources.map((source) => (
-          <SourceIcon key={source} source={source} />
-        ))}
+      <span className="hidden min-w-0 items-center md:flex">
+        <AgentStack sources={entry.sources} max={ROW_TOOLS_MAX} size="sm" />
       </span>
       <span className="hidden md:block">
         <TierBadge tier={entry.tier} />
