@@ -1,6 +1,6 @@
 {
   "name": "tokenaires",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sync your AI coding agent token usage to the Tokenaires leaderboard.",
   "type": "module",
   "bin": {
