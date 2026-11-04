@@ -3,6 +3,7 @@ import { ShieldWarningIcon } from "@solar-icons/react/linear";
 import { TierBadge } from "@/components/brand/tier-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { formatDate, formatRelative, githubUrl } from "@/lib/format";
+import { BadgeButton } from "./badge-button";
 import { ShareButton } from "./share-button";
 
 export function ProfileHeader({ profile }: { profile: ProfileResponse }) {
@@ -26,7 +27,10 @@ export function ProfileHeader({ profile }: { profile: ProfileResponse }) {
         </div>
       </div>
       <div className="flex flex-col items-start gap-2 sm:items-end">
-        <ShareButton handle={profile.user.handle} />
+        <div className="flex flex-wrap items-center gap-2">
+          <ShareButton handle={profile.user.handle} />
+          <BadgeButton handle={profile.user.handle} />
+        </div>
         {profile.status === "review" && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--warn)/0.12)] px-3 py-1 text-xs font-medium text-warn">
             <ShieldWarningIcon className="size-3.5" aria-hidden="true" />

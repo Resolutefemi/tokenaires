@@ -26,11 +26,21 @@ The site runs on http://localhost:7021 and reads from the API in `NEXT_PUBLIC_AP
 
 ## Layout
 
-- `app/` routes: `/` board, `/u/[handle]` profile with its Open Graph card, `/how-it-works`
+- `app/` routes: `/` board, `/u/[handle]` profile with its Open Graph card, `/u/[handle]/badge.svg` live README badge, `/how-it-works`
 - `components/board`, `components/profile`, `components/home` feature components
 - `components/ui` shared primitives (Button, SegmentedTabs, Select, Avatar, Skeleton, Tooltip)
 - `lib/api` API client, `lib/data` cached server reads, `hooks` TanStack Query hooks
 - `vendor/tokenaires-contracts-*.tgz` shared API contracts packed from `backend/packages/contracts`
+
+## README badge
+
+`/u/<handle>/badge.svg` renders an SVG badge from the same cached profile read as the profile page. It is not a static file: the tier and token total are read from the API on each request, and the response carries a five minute cache so GitHub's image proxy and other CDNs pick up new totals without hammering the API. Unknown handles and API failures return a readable fallback badge instead of a broken image.
+
+```md
+[![Tokenaires badge](https://tokenaires.cc/u/appdever01/badge.svg)](https://tokenaires.cc/u/appdever01)
+```
+
+Profiles copy that snippet with the **README badge** button.
 
 ## Contracts
 
