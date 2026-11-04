@@ -19,7 +19,7 @@ export async function SiteHeader() {
         <Link href="/" aria-label="Tokenaires home" className="justify-self-start rounded-full">
           <Wordmark />
         </Link>
-        <div className="hidden md:block">
+        <div className="hidden md:block [body:has([data-profile-page])_&]:invisible">
           <SiteNav />
         </div>
         <div className="flex items-center gap-2 justify-self-end">
@@ -45,7 +45,7 @@ export async function SiteHeader() {
           <JoinButton className="hidden sm:inline-flex" />
         </div>
       </div>
-      <div className="page flex justify-center pb-3 md:hidden">
+      <div className="page flex justify-center pb-3 md:hidden [body:has([data-profile-page])_&]:hidden">
         <SiteNav />
       </div>
     </header>

@@ -9,7 +9,7 @@ import { ShareButton } from "./share-button";
 export function ProfileHeader({ profile }: { profile: ProfileResponse }) {
   const name = profile.user.name ?? profile.user.handle;
   return (
-    <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+    <header className="flex flex-col gap-5 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-x-8">
       <div className="flex min-w-0 items-center gap-4">
         <Avatar src={profile.user.avatarUrl} name={name} size={64} priority className="ring-2 ring-accent/50" />
         <div className="min-w-0">
@@ -26,8 +26,8 @@ export function ProfileHeader({ profile }: { profile: ProfileResponse }) {
           </div>
         </div>
       </div>
-      <div className="flex flex-col items-start gap-2 sm:items-end">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col items-start gap-2 md:items-end">
+        <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
           <ShareButton handle={profile.user.handle} />
           <BadgeButton handle={profile.user.handle} />
         </div>

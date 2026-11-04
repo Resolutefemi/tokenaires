@@ -40,7 +40,7 @@ async function Profile({ params }: Pick<ProfilePageProps, "params">) {
 
 export default function ProfilePage({ params }: ProfilePageProps) {
   return (
-    <div className="page max-w-3xl pt-12 sm:pt-16">
+    <div data-profile-page="" className="page max-w-3xl pt-12 sm:pt-16">
       <Suspense fallback={<ProfileSkeleton />}>
         <Profile params={params} />
       </Suspense>
