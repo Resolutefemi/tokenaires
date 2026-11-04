@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { BoardPeriod, BoardSource } from '@tokenaires/contracts';
 import { sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
-import { previousRanks, rankedTotals } from './boards.query';
+import { previousRanks, RANKABLE, rankedTotals } from './boards.query';
 
 export interface BoardRow extends Record<string, unknown> {
   rank: string;
@@ -68,10 +68,10 @@ export class BoardsRepository {
   async stats(): Promise<StatsRow> {
     const [row] = await this.database.db.execute<StatsRow>(sql`
       select
-        (select count(distinct d.user_id) from daily_usage d join users u on u.id = d.user_id where u.hidden = false) as developers,
-        (select sum(d.total_tokens) from daily_usage d join users u on u.id = d.user_id where u.hidden = false) as total_tokens,
+        (select count(distinct d.user_id) from daily_usage d join users u on u.id = d.user_id where ${RANKABLE}) as developers,
+        (select sum(d.total_tokens) from daily_usage d join users u on u.id = d.user_id where ${RANKABLE}) as total_tokens,
         (select sum(r.total_tokens) from usage_records r join users u on u.id = r.user_id
-          where u.hidden = false and r.occurred_at > now() - interval '24 hours') as tokens_last_24h
+          where ${RANKABLE} and r.occurred_at > now() - interval '24 hours') as tokens_last_24h
     `);
     return row;
   }

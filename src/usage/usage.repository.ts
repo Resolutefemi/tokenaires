@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq, inArray, max, sql } from 'drizzle-orm';
 import { AgentSource, AgentSourceSchema } from '@tokenaires/contracts';
+import type { BucketTotals } from './usage.rules';
 import { newId } from '../common/utils/ids';
 import { Database, DatabaseService } from '../database/database.service';
 import {
@@ -16,11 +17,6 @@ import {
 export interface InsertedRecord {
   source: string;
   recordId: string;
-}
-
-export interface OutputPeak {
-  bucket: string;
-  outputTokens: number;
 }
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -92,19 +88,21 @@ export class UsageRepository {
       });
   }
 
-  async peakOutput(
+  async bucketTotals(
     tx: Transaction,
     userId: string,
     unit: 'hour' | 'day',
     from: Date,
     to: Date,
-  ): Promise<OutputPeak | null> {
+  ): Promise<BucketTotals[]> {
     const unitLiteral = sql.raw(unit === 'hour' ? `'hour'` : `'day'`);
     const bucket = sql<string>`date_trunc(${unitLiteral}, ${usageRecords.occurredAt})`;
-    const [row] = await tx
+    const rows = await tx
       .select({
         bucket,
         outputTokens: sql<string>`sum(${usageRecords.outputTokens})`,
+        totalTokens: sql<string>`sum(${usageRecords.totalTokens})`,
+        records: sql<string>`count(*)`,
       })
       .from(usageRecords)
       .where(
@@ -114,12 +112,13 @@ export class UsageRepository {
           sql`${usageRecords.occurredAt} < date_trunc(${unitLiteral}, ${to.toISOString()}::timestamptz) + ${`1 ${unit}`}::interval`,
         ),
       )
-      .groupBy(bucket)
-      .orderBy(sql`sum(${usageRecords.outputTokens}) desc`)
-      .limit(1);
-    return row
-      ? { bucket: String(row.bucket), outputTokens: Number(row.outputTokens) }
-      : null;
+      .groupBy(bucket);
+    return rows.map((row) => ({
+      bucket: String(row.bucket),
+      outputTokens: Number(row.outputTokens),
+      totalTokens: Number(row.totalTokens),
+      records: Number(row.records),
+    }));
   }
 
   async addFlag(

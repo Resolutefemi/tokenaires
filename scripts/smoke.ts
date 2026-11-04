@@ -201,15 +201,48 @@ async function main(): Promise<void> {
   const bobEntry = board.body.entries.find(
     (entry) => entry.user.handle === bob.handle,
   );
-  check(
-    Boolean(aliceEntry && bobEntry && aliceEntry.rank < bobEntry.rank),
-    'alice ranks above bob',
-  );
+  check(Boolean(aliceEntry), 'alice is on the board');
+  check(!bobEntry, 'bob is left off the board while under review');
   check(
     aliceEntry?.tokens === 3 * 42_012 + 900 + 1200 + 400 + 33_800,
     'alice total is server computed',
   );
-  check(bobEntry?.status === 'review', 'bob shows under review on the board');
+  const bobProfile = await json<ProfileResponse>(`/users/${bob.handle}`);
+  check(
+    bobProfile.body.status === 'review' && bobProfile.body.ranks.all === null,
+    'bob profile shows review and no rank',
+  );
+
+  const carol = await login(`carol-${run}`);
+  const hour = Math.floor(Date.now() / 3_600_000) * 3_600_000 - 2 * 3_600_000;
+  const flood = Array.from({ length: 1_000 }, (_, index) => ({
+    ...claudeRecord(0, 50),
+    occurredAt: new Date(hour + index * 1_000).toISOString(),
+    cacheReadTokens: 2_050_000,
+  }));
+  const firstFlood = await upload(carol, flood);
+  check(
+    firstFlood.body.accepted === 1_000 && !firstFlood.body.underReview,
+    'two billion cached tokens in an hour is still allowed',
+  );
+  const secondFlood = await upload(
+    carol,
+    flood.map((record) => ({
+      ...record,
+      recordId: `msg_${alnum()}:req_${alnum()}`,
+    })),
+  );
+  check(
+    secondFlood.body.underReview,
+    'over four billion tokens in one hour puts carol under review',
+  );
+  const afterFlood = await json<BoardResponse>('/boards?period=all');
+  check(
+    !afterFlood.body.entries.some(
+      (entry) => entry.user.handle === carol.handle,
+    ),
+    'carol is left off the board',
+  );
   const codexBoard = await json<BoardResponse>(
     '/boards?period=week&source=codex',
   );

@@ -51,10 +51,48 @@ export const MODEL_RELEASE_DATES: ReadonlyArray<{
 export const PLAUSIBILITY = {
   futureSkewMs: 10 * 60 * 1000,
   maxOutputPerRecord: 300_000,
-  maxTotalPerRecord: 4_000_000,
-  hourlyOutputReview: 5_000_000,
-  dailyOutputReview: 40_000_000,
+  maxTotalPerRecord: 2_100_000,
 } as const;
+
+export interface RateLimit {
+  metric: 'outputTokens' | 'totalTokens' | 'records';
+  unit: 'hour' | 'day';
+  limit: number;
+}
+
+export const REVIEW_RATES: readonly RateLimit[] = [
+  { metric: 'outputTokens', unit: 'hour', limit: 5_000_000 },
+  { metric: 'outputTokens', unit: 'day', limit: 40_000_000 },
+  { metric: 'totalTokens', unit: 'hour', limit: 4_000_000_000 },
+  { metric: 'totalTokens', unit: 'day', limit: 15_000_000_000 },
+  { metric: 'records', unit: 'hour', limit: 15_000 },
+  { metric: 'records', unit: 'day', limit: 60_000 },
+];
+
+export interface BucketTotals {
+  bucket: string;
+  outputTokens: number;
+  totalTokens: number;
+  records: number;
+}
+
+export function rateBreaches(
+  unit: RateLimit['unit'],
+  buckets: readonly BucketTotals[],
+): Array<{ rate: RateLimit; bucket: BucketTotals }> {
+  return REVIEW_RATES.filter((rate) => rate.unit === unit).flatMap((rate) => {
+    const peak = buckets.reduce<BucketTotals | null>(
+      (best, bucket) =>
+        best === null || bucket[rate.metric] > best[rate.metric]
+          ? bucket
+          : best,
+      null,
+    );
+    return peak && peak[rate.metric] > rate.limit
+      ? [{ rate, bucket: peak }]
+      : [];
+  });
+}
 
 export function totalTokensOf(record: UsageRecord): number {
   return (

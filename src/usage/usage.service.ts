@@ -5,9 +5,19 @@ import { UsageRecordRow } from '../database/schema';
 import { IngestBatchDto } from './dto/ingest-batch.dto';
 import { rollupDaily, toRow } from './usage.aggregate';
 import { UsageRepository } from './usage.repository';
-import { evaluateRecord, PLAUSIBILITY } from './usage.rules';
+import { evaluateRecord, RateLimit, rateBreaches } from './usage.rules';
 
 type Transaction = Parameters<Parameters<UsageRepository['transaction']>[0]>[0];
+
+const METRIC_FLAG = {
+  outputTokens: 'output',
+  totalTokens: 'total',
+  records: 'records',
+} as const;
+
+function flagKind(rate: RateLimit): string {
+  return `${METRIC_FLAG[rate.metric]}_rate_${rate.unit}`;
+}
 
 @Injectable()
 export class UsageService {
@@ -128,25 +138,24 @@ export class UsageService {
     const times = accepted.map((row) => row.occurredAt.getTime());
     const from = new Date(Math.min(...times));
     const to = new Date(Math.max(...times));
-    const checks = [
-      { unit: 'hour' as const, limit: PLAUSIBILITY.hourlyOutputReview },
-      { unit: 'day' as const, limit: PLAUSIBILITY.dailyOutputReview },
-    ];
-    for (const check of checks) {
-      const peak = await this.repository.peakOutput(
+    let breached = false;
+    for (const unit of ['hour', 'day'] as const) {
+      const buckets = await this.repository.bucketTotals(
         tx,
         userId,
-        check.unit,
+        unit,
         from,
         to,
       );
-      if (peak && peak.outputTokens > check.limit) {
-        await this.repository.addFlag(tx, userId, `output_rate_${check.unit}`, {
-          bucket: peak.bucket,
-          outputTokens: peak.outputTokens,
+      for (const { rate, bucket } of rateBreaches(unit, buckets)) {
+        breached = true;
+        await this.repository.addFlag(tx, userId, flagKind(rate), {
+          bucket: bucket.bucket,
+          value: bucket[rate.metric],
+          limit: rate.limit,
         });
-        await this.repository.markForReview(tx, userId);
       }
     }
+    if (breached) await this.repository.markForReview(tx, userId);
   }
 }

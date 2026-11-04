@@ -1,5 +1,10 @@
 import { UsageRecord } from '@tokenaires/contracts';
-import { evaluateRecord, totalTokensOf } from './usage.rules';
+import {
+  BucketTotals,
+  evaluateRecord,
+  rateBreaches,
+  totalTokensOf,
+} from './usage.rules';
 
 const now = Date.parse('2026-11-03T12:00:00Z');
 
@@ -83,11 +88,82 @@ describe('evaluateRecord', () => {
     [{ reasoningTokens: 900 }, 'implausible_ratio'],
     [{ outputTokens: 400_000, reasoningTokens: 0 }, 'implausible_ratio'],
     [{ cacheReadTokens: 4_500_000 }, 'implausible_ratio'],
+    [{ cacheReadTokens: 2_200_000 }, 'implausible_ratio'],
   ])('rejects %p as %s', (patch, reason) => {
     expect(evaluateRecord({ ...base, ...patch }, now)).toBe(reason);
   });
 
   it('counts reasoning inside output, not twice', () => {
     expect(totalTokensOf(base)).toBe(2 + 453 + 27_873 + 41_916);
+  });
+
+  it('accepts a full 1M context call', () => {
+    expect(
+      evaluateRecord(
+        { ...base, cacheReadTokens: 958_621, inputTokens: 33_040 },
+        now,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe('rateBreaches', () => {
+  const bucket = (patch: Partial<BucketTotals>): BucketTotals => ({
+    bucket: '2026-11-01 10:00:00+00',
+    outputTokens: 0,
+    totalTokens: 0,
+    records: 0,
+    ...patch,
+  });
+
+  it('leaves the heaviest real hour and day seen so far alone', () => {
+    expect(
+      rateBreaches('hour', [
+        bucket({
+          outputTokens: 2_097_850,
+          totalTokens: 1_731_346_208,
+          records: 4_282,
+        }),
+      ]),
+    ).toEqual([]);
+    expect(
+      rateBreaches('day', [
+        bucket({
+          outputTokens: 9_809_159,
+          totalTokens: 5_570_959_733,
+          records: 13_025,
+        }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('reviews huge cache read totals even when output stays small', () => {
+    const breaches = rateBreaches('hour', [
+      bucket({
+        outputTokens: 1_000,
+        totalTokens: 4_200_000_000,
+        records: 2_000,
+      }),
+      bucket({ bucket: 'quiet', totalTokens: 10 }),
+    ]);
+    expect(breaches.map((breach) => breach.rate.metric)).toEqual([
+      'totalTokens',
+    ]);
+    expect(breaches[0]?.bucket.totalTokens).toBe(4_200_000_000);
+  });
+
+  it('reviews call floods and output spikes per day', () => {
+    const breaches = rateBreaches('day', [
+      bucket({
+        outputTokens: 41_000_000,
+        totalTokens: 15_500_000_000,
+        records: 61_000,
+      }),
+    ]);
+    expect(breaches.map((breach) => breach.rate.metric).sort()).toEqual([
+      'outputTokens',
+      'records',
+      'totalTokens',
+    ]);
   });
 });
