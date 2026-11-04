@@ -28,7 +28,7 @@ tokenaires
 | `tokenaires scan` | Reads local logs and prints totals per source, top models, record count and date range. Sends nothing and needs no login or network. Also available as `tokenaires --dry-run`. Files that have not changed since the last scan are read from the local scan cache. |
 | `tokenaires sync [--quiet]` | Uploads new records, then prints accepted, already synced and rejected counts, your rank and your profile link. |
 | `tokenaires status` | Shows login state, handle, rank, tier and progress to the next tier. |
-| `tokenaires logout` | Deletes the saved login and device key. |
+| `tokenaires logout` | Signs this device out on the server, then deletes the saved login and device key. Offline, it still deletes them and says the server copy of the token stays active. |
 | `tokenaires schedule on [--every <hours>]` | macOS: installs a LaunchAgent that runs `sync --quiet` every 6 hours, or at the interval you pick with `--every` (whole hours from 2 to 24, for example `--every 2h`, `--every 12h` or `--every 1d`). Linux: prints a crontab line to add. Run it again with a new `--every` to change the interval. |
 | `tokenaires schedule off` | macOS: unloads and removes the LaunchAgent. Linux: prints the line to remove. |
 
@@ -75,7 +75,7 @@ Each sync asks the server for your latest record per source and sends records fr
 
 - Run `tokenaires scan` any time to see exactly what would be counted, with no network access.
 - Your login lives in `$XDG_CONFIG_HOME/tokenaires/config.json` (default `~/.config/tokenaires/config.json`), readable only by you (file mode 0600, folder 0700). It holds the API address, your access token, the device id, the device private key and your handle.
-- `tokenaires logout` deletes that file.
+- `tokenaires logout` revokes the device token on the server and deletes that file.
 - To make repeat scans fast, the CLI keeps a scan cache next to the config file at `scan-cache.json.gz`, with the same file permissions. For each log file it stores the local path, size and modification time, and the numeric records that would be uploaded (record id, model, time and token counts). It never stores prompts, responses or file contents, and the paths in it are never uploaded. A file that changes is read again, the cache is rebuilt on each new CLI version, and deleting the file is always safe. Set `TOKENAIRES_NO_CACHE=1` to turn it off.
 - SQLite databases are opened read only in immutable mode, so the CLI never writes to them or creates journal files next to them. When a small database has recent changes still in its write ahead log, the database and log are copied to a private temporary folder, read there and deleted.
 

@@ -143,6 +143,49 @@ describe('login and sync against a fake API', () => {
     server = await startFakeServer();
   });
 
+  it('revokes the device on the server when logging out', async () => {
+    await login(ctx);
+    expect(await runCli(ctx, ['logout'])).toBe(0);
+    expect(server.state.revoked).toBe(1);
+    expect(await loadConfig(configPath(ctx.env, ctx.home))).toBeNull();
+    expect(ctx.lines.join('\n')).toContain("Logged out. This device's key was removed.");
+    expect(ctx.lines.join('\n')).not.toContain('could not be reached');
+  });
+
+  it('still removes the local login when the server is unreachable', async () => {
+    await login(ctx);
+    await server.close();
+    expect(await runCli(ctx, ['logout'])).toBe(0);
+    expect(await loadConfig(configPath(ctx.env, ctx.home))).toBeNull();
+    expect(ctx.lines.join('\n')).toContain('the server still accepts this device token');
+    server = await startFakeServer();
+  });
+
+  it('signs uploads with server time when the computer clock is an hour off', async () => {
+    await login(ctx);
+    const skewed = testContext({ ...ctx, now: () => Date.now() + 60 * 60 * 1000 });
+    const totals = await sync(skewed, { quiet: true });
+    expect(server.state.staleSignatures).toBe(0);
+    expect(server.state.badSignatures).toBe(0);
+    expect(totals.accepted).toBeGreaterThan(0);
+  });
+
+  it('explains a clock problem instead of asking for a new login', async () => {
+    await login(ctx);
+    const withoutDate: typeof fetch = async (input, init) => {
+      const response = await fetch(input, init);
+      const headers = new Headers(response.headers);
+      headers.delete('date');
+      return new Response(await response.text(), { status: response.status, headers });
+    };
+    const skewed = testContext({ ...ctx, fetch: withoutDate, now: () => Date.now() + 60 * 60 * 1000 });
+    expect(await runCli(skewed, ['sync'])).toBe(1);
+    const error = ctx.errors.join('\n');
+    expect(error).toContain('Upload signature has expired. Check your clock');
+    expect(error).toContain('turn on automatic date, time and time zone');
+    expect(error).not.toContain('Run tokenaires login again');
+  });
+
   it('says so when sync runs without a login', async () => {
     expect(await runCli(ctx, ['sync'])).toBe(1);
     expect(ctx.errors.join('\n')).toContain('You are not logged in. Run tokenaires login first.');

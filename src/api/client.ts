@@ -15,6 +15,13 @@ export interface RequestOptions {
 
 export interface ApiClient {
   request<T>(path: string, schema: Schema<T>, options: RequestOptions): Promise<T>;
+  serverTime(): number;
+}
+
+export function serverOffset(dateHeader: string | null, localNow: number): number | null {
+  if (!dateHeader) return null;
+  const serverNow = Date.parse(dateHeader);
+  return Number.isNaN(serverNow) ? null : serverNow - localNow;
 }
 
 function serverMessage(payload: unknown): string | null {
@@ -43,8 +50,10 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-export function createClient(baseUrl: string, fetcher: typeof fetch): ApiClient {
+export function createClient(baseUrl: string, fetcher: typeof fetch, clock: () => number = Date.now): ApiClient {
+  let offset = 0;
   return {
+    serverTime: () => clock() + offset,
     async request<T>(path: string, schema: Schema<T>, options: RequestOptions): Promise<T> {
       const headers: Record<string, string> = { accept: 'application/json', ...options.headers };
       if (options.body !== undefined) headers['content-type'] = 'application/json';
@@ -60,6 +69,7 @@ export function createClient(baseUrl: string, fetcher: typeof fetch): ApiClient 
       } catch {
         throw new ApiError(0, `Could not reach Tokenaires at ${baseUrl}. Check your connection and try again.`);
       }
+      offset = serverOffset(response.headers.get('date'), clock()) ?? offset;
       const payload = await readJson(response);
       if (!response.ok) {
         const detail = serverMessage(payload);

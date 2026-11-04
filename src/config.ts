@@ -34,6 +34,7 @@ export const API_PATHS = {
   devicePoll: '/auth/device/poll',
   me: '/me',
   batches: '/usage/batches',
+  logout: '/auth/logout',
 } as const;
 
 export const UPLOAD_BATCH_SIZE = 1000;

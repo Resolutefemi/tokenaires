@@ -1,7 +1,7 @@
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { SIGNATURE_HEADERS, type MeSummary, type UsageRecord } from '@tokenaires/contracts';
+import { SIGNATURE_HEADERS, SIGNATURE_MAX_SKEW_MS, type MeSummary, type UsageRecord } from '@tokenaires/contracts';
 
 export interface FakeState {
   publicKey: string | null;
@@ -13,6 +13,8 @@ export interface FakeState {
   rateLimitOnce: boolean;
   rateLimited: number;
   rejectAuth: boolean;
+  revoked: number;
+  staleSignatures: number;
   cursors: MeSummary['cursors'];
 }
 
@@ -50,6 +52,11 @@ function signatureValid(state: FakeState, req: IncomingMessage, raw: string): bo
   return verify(null, Buffer.from(message), key, Buffer.from(signature, 'base64'));
 }
 
+function signatureFresh(req: IncomingMessage): boolean {
+  const sentAt = Number(req.headers[SIGNATURE_HEADERS.timestamp]);
+  return Number.isFinite(sentAt) && Math.abs(Date.now() - sentAt) <= SIGNATURE_MAX_SKEW_MS;
+}
+
 function me(state: FakeState): MeSummary {
   const total = state.uploads.flatMap((upload) => upload.records).length * 1000;
   return {
@@ -73,11 +80,23 @@ async function handle(state: FakeState, base: string, req: IncomingMessage, res:
     state.pollBodies.push(body);
     state.publicKey = typeof body.publicKey === 'string' ? body.publicKey : null;
     send(res, 200, state.pollReplies.shift() ?? { status: 'complete', token: TOKEN, deviceId: DEVICE, user: me(state).user });
+  } else if (path === '/auth/logout') {
+    if (!authorized) send(res, 401, { message: 'Unauthorized' });
+    else {
+      state.revoked += 1;
+      state.rejectAuth = true;
+      send(res, 200, { revoked: true });
+    }
   } else if (path === '/me') {
     state.meCalls += 1;
     if (!authorized) send(res, 401, { message: 'Unauthorized' });
     else send(res, 200, me(state));
   } else if (path === '/usage/batches') {
+    if (authorized && !signatureFresh(req)) {
+      state.staleSignatures += 1;
+      send(res, 401, { message: 'Upload signature has expired. Check your clock' });
+      return;
+    }
     if (!authorized || !signatureValid(state, req, raw)) {
       state.badSignatures += authorized ? 1 : 0;
       send(res, 401, { message: 'Bad signature' });
@@ -108,6 +127,8 @@ export async function startFakeServer(): Promise<FakeServer> {
     rateLimitOnce: false,
     rateLimited: 0,
     rejectAuth: false,
+    revoked: 0,
+    staleSignatures: 0,
     cursors: [
       { source: 'claude-code', lastOccurredAt: null },
       { source: 'codex', lastOccurredAt: null },

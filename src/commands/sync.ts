@@ -85,7 +85,7 @@ async function scanStep(ctx: Context, quiet: boolean): Promise<ScanResult> {
 
 async function sendBatches(ctx: Context, client: ApiClient, config: StoredConfig, bodies: readonly string[], state: UploadState, task: Task): Promise<void> {
   for (const body of bodies) {
-    const result = await withRateLimitRetry(() => uploadBatch(client, config, body, ctx.now()), {
+    const result = await withRateLimitRetry(() => uploadBatch(client, config, body), {
       sleep: (ms) => ctx.sleep(ms),
       onWait: (ms) => {
         state.resumeAt = ctx.now() + ms;
@@ -125,7 +125,7 @@ async function upload(ctx: Context, client: ApiClient, config: StoredConfig, me:
 export async function sync(ctx: Context, options: SyncOptions, existing?: StoredConfig): Promise<SyncTotals> {
   const config = existing ?? (await loadConfig(configPath(ctx.env, ctx.home)));
   if (!config) throw new UsageError(NOT_LOGGED_IN_MESSAGE);
-  const client = createClient(resolveApiUrl(ctx.env, config.apiUrl), ctx.fetch);
+  const client = createClient(resolveApiUrl(ctx.env, config.apiUrl), ctx.fetch, () => ctx.now());
   const silent = { silent: options.quiet };
   const before = await withTask(
     ctx,
