@@ -47,7 +47,7 @@ describe('evaluateRecord', () => {
     ['cline', '1761234567890:1761234599123'],
     ['roo-code', '0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b:1761234599123'],
     ['kilo-code', 'msg_01JABCDEF0123456789'],
-    ['zcode', 'msg_01JZCODE0000000000000000:req_01JZCODE0000000000000000'],
+    ['zcode', 'a1b2c3d4-e5f6-47a8-9b0c-1d2e3f4a5b6c'],
   ] as const)('accepts a native %s record id', (source, recordId) => {
     expect(
       evaluateRecord({ ...base, source, recordId, model: 'gemini-3-pro' }, now),
