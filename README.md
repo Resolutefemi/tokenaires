@@ -4,7 +4,7 @@
 
 <p align="center">
   <b>The rich list for developers, ranked by the AI tokens they burn.</b><br>
-  Claude Code · Codex · Gemini CLI · Antigravity · OpenCode · Kimi Code · Qwen Code · Copilot CLI · Cline · Roo Code · Kilo Code
+  Claude Code · Codex · Gemini CLI · Antigravity · OpenCode · Kimi Code · Qwen Code · Copilot CLI · Cline · Roo Code · Kilo Code · ZCode
 </p>
 
 <p align="center">
