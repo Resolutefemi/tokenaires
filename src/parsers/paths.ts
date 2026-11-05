@@ -39,7 +39,7 @@ export function zcodeConfigDirs(env: NodeJS.ProcessEnv, home: string): string[] 
 }
 
 export function zcodeRoots(env: NodeJS.ProcessEnv, home: string): string[] {
-  return zcodeConfigDirs(env, home).map((dir) => join(dir, 'projects'));
+  return zcodeConfigDirs(env, home).map((dir) => join(dir, 'cli', 'rollout'));
 }
 
 export function claudeDesktopRoots(env: NodeJS.ProcessEnv, home: string, platform: NodeJS.Platform): string[] {

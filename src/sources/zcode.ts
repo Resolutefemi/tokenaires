@@ -10,7 +10,7 @@ async function roots(ctx: SourceContext): Promise<string[]> {
   const base = zcodeRoots(ctx.env, ctx.home);
   if (readEnv(ctx.env, ENV_KEYS.zcodeConfig)) return base;
   const homes = await wslHomes(ctx.platform);
-  return [...base, ...homes.flatMap((home) => [join(home, '.zcode', 'projects'), join(home, '.config', 'zcode', 'projects')])];
+  return [...base, ...homes.flatMap((home) => [join(home, '.zcode', 'cli', 'rollout'), join(home, '.config', 'zcode', 'cli', 'rollout')])];
 }
 
 export const zcodeSource: LogSource = {
