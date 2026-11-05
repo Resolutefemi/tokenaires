@@ -12,6 +12,7 @@ export const AGENT_SOURCES = [
   'cline',
   'roo-code',
   'kilo-code',
+  'zcode',
 ] as const;
 
 export const AgentSourceSchema = z.enum(AGENT_SOURCES);
@@ -29,4 +30,5 @@ export const AGENT_SOURCE_LABELS: Record<AgentSource, string> = {
   cline: 'Cline',
   'roo-code': 'Roo Code',
   'kilo-code': 'Kilo Code',
+  zcode: 'ZCode',
 };
