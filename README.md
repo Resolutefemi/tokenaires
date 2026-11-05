@@ -49,6 +49,7 @@ Everything is read locally. Text logs are read line by line, and only lines that
 - **Qwen Code:** chat logs under `~/.qwen/projects/*/chats`, archived chats, subagent transcripts under `subagents`, and the older JSON sessions under `~/.qwen/tmp/*/chats` (`QWEN_HOME` moves the base folder, and `QWEN_RUNTIME_DIR` is read as well). Each assistant turn with usage counts once by its id, so a branched copy of a session is not counted twice. Cached tokens are split out of input. Thinking tokens count as output only when the reported total shows they were billed separately, because some backends estimate them from text. Subagent turns take their model from the agent's metadata file.
 - **Copilot CLI:** the `assistant_usage_events` table in `~/.copilot/session-store.db` (`COPILOT_HOME` moves it), one row per request including compaction. Cached tokens are split out of input. The per session totals written at shutdown are skipped, because they add up across resumes.
 - **Kilo Code:** `kilo.db` and channel databases in `$XDG_DATA_HOME/kilo` (default `~/.local/share/kilo`), which use the OpenCode layout, plus a database named by `KILO_DB`. Sessions Kilo imported from its old extension carry zero usage and are skipped.
+- **ZCode:** every `*.jsonl` session transcript under `projects` in each ZCode config folder. The folders are `$ZCODE_CONFIG_DIR` when set (a list separated by commas or the path separator, `~` allowed), otherwise `~/.zcode`, `~/.config/zcode` and `$XDG_CONFIG_HOME/zcode`. On Windows the ZCode homes inside WSL distros are read too. Only assistant lines with a message id and usage block are used, `<synthetic>` and zero usage lines are skipped, and streamed duplicates are merged keeping the line with the final output count.
 - **Cursor:** not counted. Cursor keeps per message token counts at zero in its local database and only stores context window estimates, so there is nothing exact to read.
 
 ## What is uploaded
@@ -57,7 +58,7 @@ Exactly these fields per record, and nothing else:
 
 | Field | Example |
 | --- | --- |
-| `source` | `claude-code`, `codex`, `gemini-cli`, `antigravity`, `opencode`, `kimi-code`, `qwen-code`, `copilot-cli`, `cline`, `roo-code` or `kilo-code` |
+| `source` | `claude-code`, `codex`, `gemini-cli`, `antigravity`, `opencode`, `kimi-code`, `qwen-code`, `copilot-cli`, `cline`, `roo-code`, `kilo-code` or `zcode` |
 | `recordId` | the tool's own id for the call: the Claude message and request id, the Codex session id and line number, the Gemini session and message id, the Antigravity conversation and response id, the OpenCode or Kilo message id, the Kimi Code session, agent and line or the kimi-cli message id, a hash of the Copilot session, row and time, the Qwen message id, or the Cline or Roo task and request time |
 | `model` | `claude-opus-5-5` |
 | `occurredAt` | `2026-11-03T10:15:00.000Z` |

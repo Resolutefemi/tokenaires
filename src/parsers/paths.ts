@@ -30,6 +30,18 @@ export function claudeRoots(env: NodeJS.ProcessEnv, home: string): string[] {
   return claudeConfigDirs(env, home).map((dir) => join(dir, 'projects'));
 }
 
+export function zcodeConfigDirs(env: NodeJS.ProcessEnv, home: string): string[] {
+  const configured = readEnv(env, ENV_KEYS.zcodeConfig);
+  if (configured) return splitDirs(configured, home);
+  const xdg = readEnv(env, ENV_KEYS.xdgConfig);
+  const dirs = [join(home, '.zcode'), join(home, '.config', 'zcode')];
+  return xdg ? [...new Set([...dirs, join(xdg, 'zcode')])] : dirs;
+}
+
+export function zcodeRoots(env: NodeJS.ProcessEnv, home: string): string[] {
+  return zcodeConfigDirs(env, home).map((dir) => join(dir, 'projects'));
+}
+
 export function claudeDesktopRoots(env: NodeJS.ProcessEnv, home: string, platform: NodeJS.Platform): string[] {
   const leaf = 'local-agent-mode-sessions';
   if (platform === 'darwin') {
